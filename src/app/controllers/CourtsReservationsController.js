@@ -1,5 +1,6 @@
 const Yup = require('yup');
 const { v4: uuidV4 } = require('uuid')
+const { startOfHour, parseISO, isBefore } = require('date-fns');
 
 const knex = require('../../database/knex');
 
@@ -25,16 +26,18 @@ class CourtsReservationsController {
       return res.status(401).json({ error: 'Court does not exists'})
     }
 
-    if (court.user_id !== userId) {
-      return res.status(403).json({ error: 'You have no permission to do that' })
-    }
-
     const [courtReservationExists] = await knex('courts-reservations')
       .select('courts-reservations.*')
       .where({ 'courts-reservations.court_id': court_id, 'courts-reservations.reserved_date': reserved_date });
 
     if (courtReservationExists) {
       return res.status(401).json({ error: 'Court already reserverd for this datetime' });
+    }
+
+    const hourStart = startOfHour(parseISO(reserved_date));
+
+    if (isBefore(hourStart, new Date())) {
+      return res.status(400).json({ error: 'Past dates are not permitted' });
     }
 
     const courtReservation = {
