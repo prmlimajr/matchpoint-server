@@ -6,10 +6,9 @@ const CourtController = require('../app/controllers/CourtController');
 
 const courtsRoutes = new Router();
 
-courtsRoutes.get('/', CourtController.list);
-
 courtsRoutes.use(authMiddleware);
 
+courtsRoutes.get('/', CourtController.list);
 courtsRoutes.post('/', CourtController.store);
 courtsRoutes.put('/:id', CourtController.update);
 courtsRoutes.delete('/:id', CourtController.destroy);

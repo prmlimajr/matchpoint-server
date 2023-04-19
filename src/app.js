@@ -1,6 +1,8 @@
 require('dotenv/config');
 require('express-async-errors');
 const cors = require('cors');
+const path = require('path');
+const Youch = require('youch');
 const express = require('express');
 const AppError = require('./utils/AppError');
 const routes = require('./routes');
@@ -13,11 +15,18 @@ app.use(cors());
 
 app.use(express.json());
 
+app.use(
+  '/court-photos',
+  express.static(path.resolve(__dirname, '..', 'tmp', 'uploads'))
+);
+
 app.use(routes);
 
-app.use((err, req, res, next) => {
-  if (err instanceof AppError) {
-    return response.status(err.statusCode).json({ message: err.message });
+app.use(async (err, req, res, next) => {
+  if (process.env.NODE_ENV === 'dev') {
+    const errors = await new Youch(err, req).toJSON();
+
+    return res.status(500).json(errors);
   }
 
   return res.status(500).json({
