@@ -39,6 +39,8 @@ Esta API foi desenvolvida para servir o projeto Matchpoint Games.
   ```
     yarn
   ```
+  Para executar o projeto localmente sera preciso que seja criado um arquivo .env na raiz do projeto. Nele deverao ser armazenadas as variaveis de
+  ambiente usadas, seguindo o modelo do arquivo .env.example.
   
   Após a instalação de todos os pacotes, é possível rodar o projeto localmente através do comando:
   
