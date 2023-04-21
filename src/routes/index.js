@@ -10,6 +10,7 @@ const courtPhotosRoutes = require('./court-photos.routes');
 const courtsReservationsRoutes = require('./courts-reservations.routes');
 const courtReviewsRoutes = require('./courts-reviews.routes');
 const sportsPricesRoutes = require('./sports-prices.routes');
+const companyRoutes = require('./company.routes');
 
 const routes = new Router();
 
@@ -33,5 +34,6 @@ routes.use('/court-photos', courtPhotosRoutes);
 routes.use('/courts-reservations', courtsReservationsRoutes);
 routes.use('/courts-reviews', courtReviewsRoutes);
 routes.use('/sports-prices', sportsPricesRoutes);
+routes.use('/company', companyRoutes);
 
 module.exports = routes;

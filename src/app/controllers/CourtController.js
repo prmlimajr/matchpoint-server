@@ -5,34 +5,49 @@ const knex = require('../../database/knex');
 
 class CourtController {
   async store(req, res) {
-    const { name } = req.body;
+    const { company_id, name, description, address, phone } = req.body;
     const { userId } = req;
     
     const schema = Yup.object().shape({
+      company_id: Yup.string().required(),
       name: Yup.string().required(),
+      description: Yup.string(),
+      address: Yup.string().required(),
+      phone: Yup.string().required()
     });
 
     if (!await schema.isValid(req.body)) {
       return res.status(400).json({ error: 'Validation failed' });
     }
 
+    const [companyExists] = await knex('company')
+      .select('company.*')
+      .where({ 'company.user_id': userId });
+
+    if (!companyExists) {
+      return res.status(400).json({ error: 'Company does not exists' });
+    }
+
+    if (companyExists.user_id !== userId) {
+      return res.status(403).json({ error: 'You do not have permission to do this operation.' });
+    }
+
     const [courtExists] = await knex('courts')
       .select('courts.*')
-      .where({ 'courts.user_id': userId })
+      .where({ 'courts.company_id': company_id })
       .andWhere({ 'courts.name': name});
 
     if (courtExists) {
       return res.status(403).json({ error: 'Court already exists' });
     }
 
-    const now = new Date();
-
     const court = {
       id: uuidV4(),
-      user_id: userId,
+      company_id,
       name,
-      created_at: now,
-      updated_at: now
+      description,
+      address,
+      phone,
     };
 
     await knex('courts').insert(court, 'id');
@@ -41,16 +56,31 @@ class CourtController {
   }
 
   async update(req, res) {
-    const { name } = req.body;
+    const { name, description, address, phone } = req.body;
     const { id } = req.params;
     const { userId } = req;
 
     const schema = Yup.object().shape({
-      name: Yup.string().required(),
+      name: Yup.string(),
+      description: Yup.string(),
+      address: Yup.string(),
+      phone: Yup.string()
     });
 
     if (!await schema.isValid(req.body)) {
       return res.status(400).json({ error: 'Validation failed' });
+    }
+
+    const [companyExists] = await knex('company')
+      .select('company.*')
+      .where({ 'company.user_id': userId });
+
+    if (!companyExists) {
+      return res.status(400).json({ error: 'Company does not exists' });
+    }
+
+    if (companyExists.user_id !== userId) {
+      return res.status(403).json({ error: 'You do not have permission to do this operation.' });
     }
 
     const [courtExists] = await knex('courts')
@@ -61,12 +91,15 @@ class CourtController {
       return res.status(404).json({ error: 'Court does not exist' });
     }
 
-    if (courtExists.user_id !== userId) {
+    if (courtExists.company_id !== companyExists.id) {
       return res.status(403).json({ message: 'You can not do this operation'});
     }
 
     const court = {
       name,
+      description,
+      address,
+      phone,
       user_id: userId,
       created_at: courtExists.created_at,
       updated_at: new Date()
