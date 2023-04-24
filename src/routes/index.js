@@ -11,6 +11,7 @@ const courtsReservationsRoutes = require('./courts-reservations.routes');
 const courtReviewsRoutes = require('./courts-reviews.routes');
 const sportsPricesRoutes = require('./sports-prices.routes');
 const companyRoutes = require('./company.routes');
+const leadRoutes = require('./lead.routes');
 
 const routes = new Router();
 
@@ -35,5 +36,6 @@ routes.use('/courts-reservations', courtsReservationsRoutes);
 routes.use('/courts-reviews', courtReviewsRoutes);
 routes.use('/sports-prices', sportsPricesRoutes);
 routes.use('/company', companyRoutes);
+routes.use('/lead', leadRoutes);
 
 module.exports = routes;
