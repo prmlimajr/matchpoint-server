@@ -27,11 +27,15 @@ class WorkingDaysController {
       .select('courts.*')
       .where({ 'courts.id': court_id });
 
+    const [company] = await knex('company')
+      .select('company.*')
+      .where({ 'company.id': court.company_id });
+
     if (!court) {
       return res.status(401).json({ error: 'Court does not exists'})
     }
 
-    if (court.user_id !== userId) {
+    if (company.user_id !== userId) {
       return res.status(403).json({ error: 'You have no permission to do that' })
     }
 

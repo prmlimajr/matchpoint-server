@@ -35,7 +35,7 @@ routes.use('/court-photos', courtPhotosRoutes);
 routes.use('/courts-reservations', courtsReservationsRoutes);
 routes.use('/courts-reviews', courtReviewsRoutes);
 routes.use('/sports-prices', sportsPricesRoutes);
-routes.use('/company', companyRoutes);
+routes.use('/companies', companyRoutes);
 routes.use('/lead', leadRoutes);
 
 module.exports = routes;
