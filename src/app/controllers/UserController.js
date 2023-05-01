@@ -7,10 +7,13 @@ const { checkPassword } = require('../../utils/checkPassword');
 
 class UserController {
   async store(req, res) {
-    const { name, email, password, isProvider } = req.body;
+    const { name, lastName, phone, notify, email, password, isProvider, } = req.body;
     
     const schema = Yup.object().shape({
       name: Yup.string().required(),
+      lastName: Yup.string().required(),
+      phone: Yup.string().required(),
+      notify: Yup.boolean().required(),
       email: Yup.string().email().required(),
       password: Yup.string().required().min(6),
       isProvider: Yup.boolean().required()
@@ -33,6 +36,9 @@ class UserController {
     const user = {
       id: uuidV4(),
       name,
+      last_name: lastName,
+      phone,
+      notify,
       email,
       password: hashedPassword,
       is_provider: isProvider
