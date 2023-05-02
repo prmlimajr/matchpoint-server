@@ -1,13 +1,17 @@
 const Yup = require('yup');
-const { v4: uuidV4 } = require('uuid')
-
+const { v4: uuidV4 } = require('uuid');
+const fs = require('fs');
 const knex = require('../../database/knex');
 
 class CompanyController {
   async store(req, res) {
     const { name, description, cnpj, address, phone } = req.body;
-    const { userId } = req;
+    const { userId, file } = req;
+
+    const base64 = new Buffer(fs.readFileSync(file.path)).toString('base64');
     
+    const logo = `data:image/png;base64,${base64}`;
+
     const schema = Yup.object().shape({
         name: Yup.string().required(),
         description: Yup.string(),
@@ -36,7 +40,8 @@ class CompanyController {
       description,
       cnpj,
       address,
-      phone
+      phone,
+      logo
     };
 
     await knex('company').insert(company, 'id');
@@ -102,9 +107,41 @@ class CompanyController {
       query.where('name', 'like', `%${name}%`);
     }
 
-    const company = await query;
+    const companies = await query;
 
-    return res.json(company);
+    const companyWithCourts = [];
+
+    for (const company of companies) {
+      const courts = await knex('courts')
+        .select('courts.*')
+        .where({ 'courts.company_id': company.id});
+
+      for (const court of courts) {
+        const [workingDays] = await knex('working-days')
+        .select('working-days.*')
+        .where({ 'working-days.court_id': court.id });
+
+        court.workingDays = workingDays ? workingDays : null;
+
+        const [businessHours] = await knex('business-hours')
+          .select('business-hours.*')
+          .where({ 'business-hours.court_id': court.id });
+
+        court.businessHours = businessHours ? businessHours : null;
+
+        const reservations = await knex('courts-reservations')
+          .select('courts-reservations.*')
+          .where({ 'courts-reservations.court_id': court.id });
+
+        court.reservations = reservations;
+      }
+      
+      company.courts = courts;
+
+      companyWithCourts.push(company);
+    }
+
+    return res.json(companyWithCourts);
   }
 
   async destroy(req, res) {

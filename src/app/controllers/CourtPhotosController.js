@@ -1,5 +1,5 @@
 const { v4: uuidV4 } = require('uuid')
-
+const fs = require('fs');
 const knex = require('../../database/knex');
 
 class CourtPhotosController {
@@ -20,12 +20,14 @@ class CourtPhotosController {
     }
 
     for (const photo of req.files) {
-      const { filename: path } = photo;
-  
+      const base64 = new Buffer(fs.readFileSync(photo.path)).toString('base64');
+    
+      const url = `data:image/png;base64,${base64}`;
+
       const file = {
         id: uuidV4(),
         court_id,
-        url: path
+        url
       };
   
       await knex('courts-photos').insert(file);
