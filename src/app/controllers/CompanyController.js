@@ -144,6 +144,51 @@ class CompanyController {
     return res.json(companyWithCourts);
   }
 
+  async listOne(req, res) {
+    const { id } = req.params;
+
+    const query = knex('company')
+      .select('company.*')
+      .where({ id });
+
+    const companies = await query;
+
+    const companyWithCourts = [];
+
+    for (const company of companies) {
+      const courts = await knex('courts')
+        .select('courts.*')
+        .where({ 'courts.company_id': company.id});
+
+      for (const court of courts) {
+        const [workingDays] = await knex('working-days')
+        .select('working-days.*')
+        .where({ 'working-days.court_id': court.id });
+
+        court.workingDays = workingDays ? workingDays : null;
+
+        const [businessHours] = await knex('business-hours')
+          .select('business-hours.*')
+          .where({ 'business-hours.court_id': court.id });
+
+        court.businessHours = businessHours ? businessHours : null;
+
+        const reservations = await knex('courts-reservations')
+          .select('courts-reservations.*')
+          .where({ 'courts-reservations.court_id': court.id });
+
+        court.reservations = reservations;
+      }
+      
+      company.courts = courts;
+
+      companyWithCourts.push(company);
+    }
+
+    return res.json(companyWithCourts[0]);
+  }
+
+
   async destroy(req, res) {
     const { id } = req.params;
     const { userId } = req;

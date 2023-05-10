@@ -11,6 +11,7 @@ const companyRoutes = new Router();
 const upload = multer(multerConfig);
 
 companyRoutes.get('/', CompanyController.list);
+companyRoutes.get('/:id', CompanyController.listOne);
 
 companyRoutes.use(authMiddleware);
 
