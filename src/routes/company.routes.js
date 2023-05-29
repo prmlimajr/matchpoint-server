@@ -15,7 +15,7 @@ companyRoutes.get('/:id', CompanyController.listOne);
 
 companyRoutes.use(authMiddleware);
 
-companyRoutes.post('/', upload.single('file'), CompanyController.store);
+companyRoutes.post('/', upload.single('logo'), CompanyController.store);
 companyRoutes.put('/:id', CompanyController.update);
 companyRoutes.delete('/:id', CompanyController.destroy);
 

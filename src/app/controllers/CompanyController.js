@@ -5,8 +5,8 @@ const knex = require('../../database/knex');
 
 class CompanyController {
   async store(req, res) {
-    const { name, description, cnpj, address, phone } = req.body;
-    const { userId, file } = req;
+    const { name, description, cnpj, address, phone, bio, history, vip, facebook, instagram, cellphone, courts } = req.body;
+    const { file } = req;
 
     const base64 = new Buffer(fs.readFileSync(file.path)).toString('base64');
     
@@ -17,7 +17,13 @@ class CompanyController {
         description: Yup.string(),
         cnpj: Yup.string().required(),
         address: Yup.string().required(),
-        phone: Yup.string().required()
+        phone: Yup.string(),
+        bio: Yup.string(),
+        history: Yup.string(),
+        vip: Yup.boolean().required(),
+        facebook: Yup.string(),
+        instagram: Yup.string(),
+        cellphone: Yup.string().required()
     });
 
     if (!await schema.isValid(req.body)) {
@@ -26,7 +32,6 @@ class CompanyController {
 
     const [companyExists] = await knex('company')
       .select('company.*')
-      .where({ 'company.user_id': userId })
       .andWhere({ 'company.cnpj': cnpj});
 
     if (companyExists) {
@@ -35,13 +40,18 @@ class CompanyController {
 
     const company = {
       id: uuidV4(),
-      user_id: userId,
       name,
       description,
       cnpj,
       address,
       phone,
-      logo
+      logo,
+      bio, 
+      history, 
+      vip, 
+      facebook, 
+      instagram, 
+      cellphone
     };
 
     await knex('company').insert(company, 'id');
@@ -98,14 +108,10 @@ class CompanyController {
   }
 
   async list(req, res) {
-    const { name } = req.query;
+    const { sport, place } = req.query;
 
     const query = knex('company')
       .select('company.*');
-
-    if (name) {
-      query.where('name', 'like', `%${name}%`);
-    }
 
     const companies = await query;
 
@@ -187,7 +193,6 @@ class CompanyController {
 
     return res.json(companyWithCourts[0]);
   }
-
 
   async destroy(req, res) {
     const { id } = req.params;
