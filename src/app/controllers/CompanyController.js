@@ -3,58 +3,78 @@ const { v4: uuidV4 } = require('uuid');
 const fs = require('fs');
 const knex = require('../../database/knex');
 
+const convertToBase64 = (img) => {
+  console.log({ img })
+  const base64 = new Buffer(fs.readFileSync(img.path)).toString('base64');
+      
+  return `data:image/png;base64,${base64}`;
+}
+
 class CompanyController {
   async store(req, res) {
-    const { name, description, cnpj, address, phone, bio, history, vip, facebook, instagram, cellphone, courts } = req.body;
-    const { file } = req;
+    const { name, address, lat, lng, cellphone, phone, bio, facebook, instagram, description, questionsAndAnswers, history, courts } = req.body;
+    const { files } = req;
 
-    const base64 = new Buffer(fs.readFileSync(file.path)).toString('base64');
+    const { logo, firstPicture, secondPicture, thirdPicture, courtPicture } = files
     
-    const logo = `data:image/png;base64,${base64}`;
-
-    const schema = Yup.object().shape({
-        name: Yup.string().required(),
-        description: Yup.string(),
-        cnpj: Yup.string().required(),
-        address: Yup.string().required(),
-        phone: Yup.string(),
-        bio: Yup.string(),
-        history: Yup.string(),
-        vip: Yup.boolean().required(),
-        facebook: Yup.string(),
-        instagram: Yup.string(),
-        cellphone: Yup.string().required()
-    });
-
-    if (!await schema.isValid(req.body)) {
-      return res.status(400).json({ error: 'Validation failed' });
-    }
-
-    const [companyExists] = await knex('company')
-      .select('company.*')
-      .andWhere({ 'company.cnpj': cnpj});
-
-    if (companyExists) {
-      return res.status(403).json({ error: 'Company already exists' });
-    }
+    const base64Logo = logo ? convertToBase64(logo) : ''
+    const base64FirstPicture = firstPicture ? convertToBase64(firstPicture) : ''
+    const base64SecondPicture = secondPicture ? convertToBase64(secondPicture) : ''
+    const base64ThirdPicture = thirdPicture ? convertToBase64(thirdPicture) : ''
 
     const company = {
       id: uuidV4(),
+      logo: base64Logo,
+      firstPicture: base64FirstPicture,
+      secondPicture: base64SecondPicture,
+      thirdPicture: base64ThirdPicture,
       name,
-      description,
-      cnpj,
       address,
+      lat,
+      lng,
+      cellphone,
       phone,
-      logo,
       bio, 
-      history, 
-      vip, 
       facebook, 
       instagram, 
-      cellphone
+      description,
+      history, 
+      vip: false, 
     };
 
-    await knex('company').insert(company, 'id');
+    const companyId = await knex('company').insert(company, 'id');
+
+    const normalizedQuestionsAndAnswers = JSON.parse(questionsAndAnswers)
+
+    for (const qa of normalizedQuestionsAndAnswers) {
+      const question = {
+        id: uuidV4(),
+        company_id: companyId,
+        question: qa.question,
+        answer: qa.answer
+      }
+
+      await knex('questions').insert(question)
+    }
+
+    const normalizedCourts = JSON.parse(courts);
+
+    for (const court of courts) {
+      const insertedCourt = {
+        id: uuidV4(),
+        company_id: companyId,
+        address: court.address,
+        lat: court.lat,
+        lng: court.lng,
+        sports: court.sports,
+        is_indoor: court.isIndoor,
+      }
+
+      await knex('courts').insert(insertedCourt);
+    }
+
+    company.questionsAndAnswers = normalizedQuestionsAndAnswers;
+    company.courts = normalizedCourts
 
     return res.json(company);
   }
