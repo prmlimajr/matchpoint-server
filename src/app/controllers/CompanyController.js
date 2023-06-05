@@ -4,8 +4,7 @@ const fs = require('fs');
 const knex = require('../../database/knex');
 
 const convertToBase64 = (img) => {
-  console.log({ img })
-  const base64 = new Buffer(fs.readFileSync(img.path)).toString('base64');
+  const base64 = new Buffer(fs.readFileSync(img[0].path)).toString('base64');
       
   return `data:image/png;base64,${base64}`;
 }
@@ -15,15 +14,17 @@ class CompanyController {
     const { name, address, lat, lng, cellphone, phone, bio, facebook, instagram, description, questionsAndAnswers, history, courts } = req.body;
     const { files } = req;
 
-    const { logo, firstPicture, secondPicture, thirdPicture, courtPicture } = files
+    const { logo, firstPicture, secondPicture, thirdPicture } = files
     
     const base64Logo = logo ? convertToBase64(logo) : ''
     const base64FirstPicture = firstPicture ? convertToBase64(firstPicture) : ''
     const base64SecondPicture = secondPicture ? convertToBase64(secondPicture) : ''
     const base64ThirdPicture = thirdPicture ? convertToBase64(thirdPicture) : ''
 
+    const company_id = uuidV4();
+
     const company = {
-      id: uuidV4(),
+      id: company_id,
       logo: base64Logo,
       firstPicture: base64FirstPicture,
       secondPicture: base64SecondPicture,
@@ -40,16 +41,17 @@ class CompanyController {
       description,
       history, 
       vip: false, 
+      premium: false,
     };
 
-    const companyId = await knex('company').insert(company, 'id');
+    await knex('company').insert(company, 'id');
 
     const normalizedQuestionsAndAnswers = JSON.parse(questionsAndAnswers)
 
     for (const qa of normalizedQuestionsAndAnswers) {
       const question = {
         id: uuidV4(),
-        company_id: companyId,
+        company_id,
         question: qa.question,
         answer: qa.answer
       }
@@ -59,18 +61,34 @@ class CompanyController {
 
     const normalizedCourts = JSON.parse(courts);
 
-    for (const court of courts) {
+    for (let i = 0; i < normalizedCourts.length; i++) {
+      const court_id = uuidV4();
+
       const insertedCourt = {
-        id: uuidV4(),
-        company_id: companyId,
-        address: court.address,
-        lat: court.lat,
-        lng: court.lng,
-        sports: court.sports,
-        is_indoor: court.isIndoor,
+        id: court_id,
+        company_id,
+        address: normalizedCourts[i].address,
+        lat: normalizedCourts[i].lat,
+        lng: normalizedCourts[i].lng,
+        sports: normalizedCourts[i].sports,
+        is_indoor: normalizedCourts[i].isIndoor
       }
 
       await knex('courts').insert(insertedCourt);
+
+      const courtPictureBase64 = files[`courtPicture${i}`] ?  convertToBase64(files[`courtPicture${i}`]) : ''
+
+      if (courtPictureBase64) {
+        const picture = {
+          id: uuidV4(),
+          court_id,
+          url: courtPictureBase64,
+        }
+
+        await knex('courts-photos').insert(picture);
+
+        normalizedCourts[i].picture = picture
+      }
     }
 
     company.questionsAndAnswers = normalizedQuestionsAndAnswers;

@@ -24,7 +24,25 @@ companyRoutes.post('/', upload.fields([{
 }, {
   name: 'thirdPicture', maxCount: 1
 }, {
-  name: 'courtPicture', maxCount: 1
+  name: 'courtPicture0', maxCount: 1
+}, {
+  name: 'courtPicture1', maxCount: 1
+}, {
+  name: 'courtPicture2', maxCount: 1
+}, {
+  name: 'courtPicture3', maxCount: 1
+}, {
+  name: 'courtPicture4', maxCount: 1
+}, {
+  name: 'courtPicture5', maxCount: 1
+}, {
+  name: 'courtPicture6', maxCount: 1
+}, {
+  name: 'courtPicture7', maxCount: 1
+}, {
+  name: 'courtPicture8', maxCount: 1
+}, {
+  name: 'courtPicture9', maxCount: 1
 }]), CompanyController.store);
 companyRoutes.put('/:id', CompanyController.update);
 companyRoutes.delete('/:id', CompanyController.destroy);
