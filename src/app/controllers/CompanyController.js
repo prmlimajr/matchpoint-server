@@ -2,6 +2,7 @@ const Yup = require('yup');
 const { v4: uuidV4 } = require('uuid');
 const fs = require('fs');
 const knex = require('../../database/knex');
+const calculateDistance = require('../../utils/calculateDistance');
 
 const convertToBase64 = (img) => {
   const base64 = new Buffer(fs.readFileSync(img[0].path)).toString('base64');
@@ -11,7 +12,7 @@ const convertToBase64 = (img) => {
 
 class CompanyController {
   async store(req, res) {
-    const { name, address, lat, lng, cellphone, phone, bio, facebook, instagram, description, questionsAndAnswers, history, courts } = req.body;
+    const { name, addresses, cellphone, phone, bio, facebook, instagram, description, questionsAndAnswers, history, courts } = req.body;
     const { files } = req;
 
     const { logo, firstPicture, secondPicture, thirdPicture } = files
@@ -30,9 +31,6 @@ class CompanyController {
       secondPicture: base64SecondPicture,
       thirdPicture: base64ThirdPicture,
       name,
-      address,
-      lat,
-      lng,
       cellphone,
       phone,
       bio, 
@@ -45,6 +43,20 @@ class CompanyController {
     };
 
     await knex('company').insert(company, 'id');
+
+    const normalizedAddresses = JSON.parse(addresses);
+
+    for (const ad of [...new Set(normalizedAddresses)]) {
+      const insertedAddress = {
+        id: uuidV4(),
+        company_id,
+        address: ad.address,
+        lat: ad.lat,
+        lng: ad.lng
+      }
+
+      await knex('address').insert(insertedAddress)
+    }
 
     const normalizedQuestionsAndAnswers = JSON.parse(questionsAndAnswers)
 
@@ -70,11 +82,22 @@ class CompanyController {
         address: normalizedCourts[i].address,
         lat: normalizedCourts[i].lat,
         lng: normalizedCourts[i].lng,
-        sports: normalizedCourts[i].sports,
         is_indoor: normalizedCourts[i].isIndoor
       }
 
       await knex('courts').insert(insertedCourt);
+
+      for (const sport of normalizedCourts[i].sports) {
+        const sport_id = uuidV4();
+
+        const insertedSport = {
+          id: sport_id,
+          court_id,
+          sport,
+        }
+
+        await knex('courts_sports').insert(insertedSport);
+      }
 
       const courtPictureBase64 = files[`courtPicture${i}`] ?  convertToBase64(files[`courtPicture${i}`]) : ''
 
@@ -92,7 +115,8 @@ class CompanyController {
     }
 
     company.questionsAndAnswers = normalizedQuestionsAndAnswers;
-    company.courts = normalizedCourts
+    company.courts = normalizedCourts;
+    company.address = normalizedAddresses;
 
     return res.json(company);
   }
@@ -146,7 +170,7 @@ class CompanyController {
   }
 
   async list(req, res) {
-    const { sport, place } = req.query;
+    const { sport, lat, lng } = req.query;
 
     const query = knex('company')
       .select('company.*');
@@ -156,36 +180,92 @@ class CompanyController {
     const companyWithCourts = [];
 
     for (const company of companies) {
+      const addresses = await knex('address')
+        .select('address.*')
+        .where({ 'address.company_id': company.id });
+
+      company.addresses = addresses;
+      
       const courts = await knex('courts')
         .select('courts.*')
         .where({ 'courts.company_id': company.id});
 
+      const courtsWithSports = [];
+
       for (const court of courts) {
-        const [workingDays] = await knex('working-days')
-        .select('working-days.*')
-        .where({ 'working-days.court_id': court.id });
+        const sports = await knex('courts_sports')
+          .select('courts_sports.*')
+          .where({ 'courts_sports.court_id': court.id});
 
-        court.workingDays = workingDays ? workingDays : null;
+        court.sports = sports;
 
-        const [businessHours] = await knex('business-hours')
-          .select('business-hours.*')
-          .where({ 'business-hours.court_id': court.id });
-
-        court.businessHours = businessHours ? businessHours : null;
-
-        const reservations = await knex('courts-reservations')
-          .select('courts-reservations.*')
-          .where({ 'courts-reservations.court_id': court.id });
-
-        court.reservations = reservations;
+        courtsWithSports.push(court);
       }
-      
-      company.courts = courts;
+
+      company.courts = courtsWithSports;
+
+      company.photos = [];
+
+      if (company.firstPicture) {
+        company.photos.push(company.firstPicture);
+      }
+
+      if (company.secondPicture) {
+        company.photos.push(company.secondPicture);
+      }
+
+      if (company.thirdPicture) {
+        company.photos.push(company.thirdPicture);
+      }
+
+      delete company.firstPicture;
+      delete company.secondPicture;
+      delete company.thirdPicture;
 
       companyWithCourts.push(company);
     }
 
-    return res.json(companyWithCourts);
+    const companiesWithFullData = companyWithCourts.map(company => {
+      company.distanceToOrigin = Infinity;
+      company.matchesSportQuery = false;
+
+      company.addresses.forEach(address => {
+        const distanceToOrigin = calculateDistance({ lat, lng }, { lat: address.lat, lng: address.lng });
+
+        if (distanceToOrigin < company.distanceToOrigin) {
+          company.distanceToOrigin = distanceToOrigin;
+        }
+      });
+
+      company.courts.forEach(court => {
+        court.sports.forEach(sportInCourt => {
+          if (sportInCourt.sport === sport) {
+            company.matchesSportQuery = true;
+          }
+        });
+      });
+
+      return company
+    });
+    
+    const companiesWithSportMatch = [];
+    const companiesWithoutSportMatch = [];
+
+    companiesWithFullData.forEach(company => {
+      if (company.matchesSportQuery) {
+        companiesWithSportMatch.push(company);
+      } else {
+        companiesWithoutSportMatch.push(company);
+      }
+    });
+console.log({ companiesWithSportMatch, companiesWithoutSportMatch})
+    const sortedCompaniesWithSportMatch = companiesWithSportMatch.sort((a, b) => a.distanceToOrigin - b.distanceToOrigin);
+    const sortedCompaniesWithoutSportMatch = companiesWithoutSportMatch.sort((a, b) => a.distanceToOrigin - b.distanceToOrigin);
+
+    return res.json([
+      ...sortedCompaniesWithSportMatch,
+      ...sortedCompaniesWithoutSportMatch
+    ]);
   }
 
   async listOne(req, res) {
