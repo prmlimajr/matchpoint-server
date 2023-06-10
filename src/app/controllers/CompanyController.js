@@ -199,6 +199,9 @@ class CompanyController {
 
         court.sports = sports;
 
+        court.is_indoor = !!court.is_indoor;
+        court.has_classes = !!court.has_classes;
+
         courtsWithSports.push(court);
       }
 
@@ -217,6 +220,10 @@ class CompanyController {
       if (company.thirdPicture) {
         company.photos.push(company.thirdPicture);
       }
+
+
+      company.vip = !!company.vip
+      company.premium = !!company.premium
 
       delete company.firstPicture;
       delete company.secondPicture;
@@ -258,7 +265,7 @@ class CompanyController {
         companiesWithoutSportMatch.push(company);
       }
     });
-console.log({ companiesWithSportMatch, companiesWithoutSportMatch})
+
     const sortedCompaniesWithSportMatch = companiesWithSportMatch.sort((a, b) => a.distanceToOrigin - b.distanceToOrigin);
     const sortedCompaniesWithoutSportMatch = companiesWithoutSportMatch.sort((a, b) => a.distanceToOrigin - b.distanceToOrigin);
 
@@ -271,45 +278,69 @@ console.log({ companiesWithSportMatch, companiesWithoutSportMatch})
   async listOne(req, res) {
     const { id } = req.params;
 
-    const query = knex('company')
+    const [company] = await knex('company')
       .select('company.*')
-      .where({ id });
+      .where({ 'company.id': id});
 
-    const companies = await query;
-
-    const companyWithCourts = [];
-
-    for (const company of companies) {
-      const courts = await knex('courts')
-        .select('courts.*')
-        .where({ 'courts.company_id': company.id});
-
-      for (const court of courts) {
-        const [workingDays] = await knex('working-days')
-        .select('working-days.*')
-        .where({ 'working-days.court_id': court.id });
-
-        court.workingDays = workingDays ? workingDays : null;
-
-        const [businessHours] = await knex('business-hours')
-          .select('business-hours.*')
-          .where({ 'business-hours.court_id': court.id });
-
-        court.businessHours = businessHours ? businessHours : null;
-
-        const reservations = await knex('courts-reservations')
-          .select('courts-reservations.*')
-          .where({ 'courts-reservations.court_id': court.id });
-
-        court.reservations = reservations;
-      }
-      
-      company.courts = courts;
-
-      companyWithCourts.push(company);
+    if (!company) {
+      return res.status(404).json({ message: 'This company does not exist' });
     }
 
-    return res.json(companyWithCourts[0]);
+    const questions = await knex('questions')
+      .select('questions.*')
+      .where({ 'questions.company_id': company.id });
+
+    company.questionsAndAnswers = questions;
+
+    const addresses = await knex('address')
+      .select('address.*')
+      .where({ 'address.company_id': company.id });
+
+    company.addresses = addresses;
+    
+    const courts = await knex('courts')
+      .select('courts.*')
+      .where({ 'courts.company_id': company.id});
+
+    const courtsWithSports = [];
+
+    for (const court of courts) {
+      const sports = await knex('courts_sports')
+        .select('courts_sports.*')
+        .where({ 'courts_sports.court_id': court.id});
+
+      court.sports = sports;
+
+      court.is_indoor = !!court.is_indoor;
+      court.has_classes = !!court.has_classes;
+
+      courtsWithSports.push(court);
+    }
+
+    company.courts = courtsWithSports;
+
+    company.photos = [];
+
+    if (company.firstPicture) {
+      company.photos.push(company.firstPicture);
+    }
+
+    if (company.secondPicture) {
+      company.photos.push(company.secondPicture);
+    }
+
+    if (company.thirdPicture) {
+      company.photos.push(company.thirdPicture);
+    }
+
+    company.vip = !!company.vip
+    company.premium = !!company.premium
+
+    delete company.firstPicture;
+    delete company.secondPicture;
+    delete company.thirdPicture;
+    
+    return res.json(company);
   }
 
   async destroy(req, res) {
