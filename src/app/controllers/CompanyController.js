@@ -82,7 +82,8 @@ class CompanyController {
         address: normalizedCourts[i].address,
         lat: normalizedCourts[i].lat,
         lng: normalizedCourts[i].lng,
-        is_indoor: normalizedCourts[i].isIndoor
+        is_indoor: normalizedCourts[i].is_indoor,
+        has_classes: normalizedCourts[i].has_classes
       }
 
       await knex('courts').insert(insertedCourt);
@@ -269,9 +270,42 @@ class CompanyController {
     const sortedCompaniesWithSportMatch = companiesWithSportMatch.sort((a, b) => a.distanceToOrigin - b.distanceToOrigin);
     const sortedCompaniesWithoutSportMatch = companiesWithoutSportMatch.sort((a, b) => a.distanceToOrigin - b.distanceToOrigin);
 
+    const vipsWithSportMatch = [];
+    const premiumsWithSportMatch = [];
+    const basicsWithSportMatch = [];
+
+    const vipsWithoutSportMatch = [];
+    const premiumsWithoutSportMatch = [];
+    const basicsWithoutSportMatch = [];
+    
+    sortedCompaniesWithSportMatch.forEach(company => {
+      if (company.vip) {
+        vipsWithSportMatch.push(company);
+      } else if (company.premium) {
+        premiumsWithSportMatch.push(company);
+      } else {
+        basicsWithSportMatch.push(company);
+      }
+    });
+
+    sortedCompaniesWithoutSportMatch.forEach(company => {
+      if (company.vip) {
+        vipsWithoutSportMatch.push(company);
+      } else if (company.premium) {
+        premiumsWithoutSportMatch.push(company);
+      } else {
+        basicsWithoutSportMatch.push(company);
+      }
+    })
+
+    
     return res.json([
-      ...sortedCompaniesWithSportMatch,
-      ...sortedCompaniesWithoutSportMatch
+      ...vipsWithSportMatch,
+      ...premiumsWithSportMatch,
+      ...vipsWithoutSportMatch,
+      ...premiumsWithoutSportMatch,
+      ...basicsWithSportMatch,
+      ...basicsWithoutSportMatch
     ]);
   }
 
