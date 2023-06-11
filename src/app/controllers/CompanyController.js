@@ -301,8 +301,8 @@ class CompanyController {
     
     return res.json([
       ...vipsWithSportMatch,
-      ...premiumsWithSportMatch,
       ...vipsWithoutSportMatch,
+      ...premiumsWithSportMatch,
       ...premiumsWithoutSportMatch,
       ...basicsWithSportMatch,
       ...basicsWithoutSportMatch
