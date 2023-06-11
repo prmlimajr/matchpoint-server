@@ -173,8 +173,16 @@ class CompanyController {
   async list(req, res) {
     const { sport, lat, lng } = req.query;
 
-    const query = knex('company')
-      .select('company.*');
+    const query = knex('company as c')
+      .select(
+        'c.id',
+        'c.logo',
+        'c.name',
+        'c.vip',
+        'c.premium',
+        'c.phone',
+        'c.cellphone'
+      );
 
     const companies = await query;
 
@@ -208,27 +216,8 @@ class CompanyController {
 
       company.courts = courtsWithSports;
 
-      company.photos = [];
-
-      if (company.firstPicture) {
-        company.photos.push(company.firstPicture);
-      }
-
-      if (company.secondPicture) {
-        company.photos.push(company.secondPicture);
-      }
-
-      if (company.thirdPicture) {
-        company.photos.push(company.thirdPicture);
-      }
-
-
       company.vip = !!company.vip
       company.premium = !!company.premium
-
-      delete company.firstPicture;
-      delete company.secondPicture;
-      delete company.thirdPicture;
 
       companyWithCourts.push(company);
     }
