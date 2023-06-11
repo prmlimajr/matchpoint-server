@@ -301,10 +301,10 @@ class CompanyController {
     
     return res.json([
       ...vipsWithSportMatch,
-      ...vipsWithoutSportMatch,
       ...premiumsWithSportMatch,
-      ...premiumsWithoutSportMatch,
       ...basicsWithSportMatch,
+      ...vipsWithoutSportMatch,
+      ...premiumsWithoutSportMatch,
       ...basicsWithoutSportMatch
     ]);
   }
