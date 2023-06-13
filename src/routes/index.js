@@ -12,6 +12,7 @@ const courtReviewsRoutes = require('./courts-reviews.routes');
 const sportsPricesRoutes = require('./sports-prices.routes');
 const companyRoutes = require('./company.routes');
 const leadRoutes = require('./lead.routes');
+const addressRoutes = require('./address.routes');
 
 const routes = new Router();
 
@@ -37,5 +38,6 @@ routes.use('/courts-reviews', courtReviewsRoutes);
 routes.use('/sports-prices', sportsPricesRoutes);
 routes.use('/companies', companyRoutes);
 routes.use('/lead', leadRoutes);
+routes.use('/address', addressRoutes);
 
 module.exports = routes;

@@ -172,19 +172,30 @@ class CompanyController {
 
   async list(req, res) {
     const { sport, lat, lng } = req.query;
+    
+    // const [count] = await knex('company').count('*')
 
-    const query = knex('company as c')
-      .select(
-        'c.id',
-        'c.logo',
-        'c.name',
-        'c.vip',
-        'c.premium',
-        'c.phone',
-        'c.cellphone'
-      );
+    // const totalPages = count['count(*)'] / 10;
 
-    const companies = await query;
+    const companies = [];
+
+    // for (let i = 0; i < totalPages; i++) {
+    //   console.log({ i })
+      const query = await knex('company as c')
+        .select(
+          'c.id',
+          'c.logo',
+          'c.name',
+          'c.vip',
+          'c.premium',
+          'c.phone',
+          'c.cellphone'
+        )
+        // .offset(i)
+        // .limit(10)
+
+      companies.push(...query)
+    // }
 
     const companyWithCourts = [];
 
@@ -207,9 +218,6 @@ class CompanyController {
           .where({ 'courts_sports.court_id': court.id});
 
         court.sports = sports;
-
-        court.is_indoor = !!court.is_indoor;
-        court.has_classes = !!court.has_classes;
 
         courtsWithSports.push(court);
       }
@@ -332,7 +340,12 @@ class CompanyController {
         .select('courts_sports.*')
         .where({ 'courts_sports.court_id': court.id});
 
+      const photos = await knex('courts-photos')
+        .select('courts-photos.url')
+        .where({ 'courts-photos.court_id': court.id});
+
       court.sports = sports;
+      court.photos = photos;
 
       court.is_indoor = !!court.is_indoor;
       court.has_classes = !!court.has_classes;
