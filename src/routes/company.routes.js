@@ -41,6 +41,7 @@ const uploadFields = [{
 }]
 
 companyRoutes.get('/', CompanyController.list);
+companyRoutes.get('/vips', CompanyController.listVips);
 companyRoutes.get('/:id', CompanyController.listOne);
 companyRoutes.get('/user_id/:user_id', CompanyController.listByUserId);
 

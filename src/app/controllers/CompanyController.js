@@ -446,18 +446,18 @@ class CompanyController {
     const courts = await knex('courts')
       .select('courts.*')
       .where({ 'courts.company_id': company.id});
-console.log({ courts })
+
     const courtsWithSports = [];
 
     for (const court of courts) {
       const sports = await knex('courts_sports')
         .select('courts_sports.*')
         .where({ 'courts_sports.court_id': court.id});
-console.log({ sports })
+
       const photos = await knex('courts-photos')
         .select('courts-photos.url')
         .where({ 'courts-photos.court_id': court.id});
-console.log({ photos })
+
       court.sports = sports;
       court.photos = photos;
 
@@ -559,6 +559,42 @@ console.log({ photos })
     delete company.thirdPicture;
     
     return res.json(company);
+  }
+
+  async listVips(req, res) {
+    const vips = await knex('company')
+      .select('company.id', 'company.name', 'company.logo')
+      .where({ 'company.vip': '1'})
+      .orWhere({ 'company.premium': '1'});
+
+    for (const vip of vips) {
+      vip.sports = [];
+      
+      const courts = await knex('courts')
+        .select('courts.*')
+        .where({ 'courts.company_id': vip.id });
+      
+      for (const court of courts) {
+        const sports = await knex('courts_sports')
+          .select('courts_sports.*')
+          .where({ 'courts_sports.court_id': court.id });
+
+        vip.sports = [...vip.sports, ...sports];
+      } 
+    }
+
+    const response = vips.map(vip => {
+      const sports = vip.sports.map(sport => sport.sport)
+
+      return {
+        id: vip.id,
+        logo: vip.logo,
+        name: vip.name,
+        sports: [...new Set(sports)]
+      }
+    });
+
+    return res.json(response)
   }
 
   async destroy(req, res) {
