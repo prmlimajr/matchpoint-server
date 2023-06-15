@@ -123,22 +123,35 @@ class CompanyController {
   }
 
   async update(req, res) {
-    const { name, description, cnpj, address, phone } = req.body;
+    const { name, addresses, cellphone, phone, bio, facebook, instagram, description, questionsAndAnswers, history, courts } = req.body;
+    const { files } = req;
+
+    const { logo, firstPicture, secondPicture, thirdPicture } = files
+
     const { id } = req.params;
     const { userId } = req;
 
-    const schema = Yup.object().shape({
-      name: Yup.string(),
-      description: Yup.string(),
-      cnpj: Yup.string(),
-      address: Yup.string(),
-      phone: Yup.string()
-    });
-
-    if (!await schema.isValid(req.body)) {
-      return res.status(400).json({ error: 'Validation failed' });
+    let base64Logo;
+    let base64FirstPicture;
+    let base64SecondPicture;
+    let base64ThirdPicture;
+    
+    if (logo) {
+      base64Logo = convertToBase64(logo);
     }
 
+    if (firstPicture) {
+      base64FirstPicture = convertToBase64(firstPicture);
+    }
+
+    if (secondPicture) {
+      base64SecondPicture = convertToBase64(secondPicture);
+    }
+
+    if (thirdPicture) {
+      base64ThirdPicture = convertToBase64(thirdPicture);
+    }
+    
     const [companyExists] = await knex('company')
       .select('company.*')
       .where({ 'company.id': id });
@@ -152,50 +165,151 @@ class CompanyController {
     }
 
     const company = {
+      id,
+      logo: base64Logo ? base64Logo : companyExists.logo,
+      firstPicture: base64FirstPicture ? base64FirstPicture : companyExists.firstPicture,
+      secondPicture: base64SecondPicture ? base64SecondPicture : companyExists.secondPicture,
+      thirdPicture: base64ThirdPicture ? base64ThirdPicture : companyExists.thirdPicture,
       name,
-      description,
-      cnpj,
-      address,
+      cellphone,
       phone,
-      user_id: userId,
-      created_at: companyExists.created_at,
-      updated_at: new Date()
+      bio, 
+      facebook, 
+      instagram, 
+      description,
+      history,
+      vip: !!companyExists.vip,
+      premium: !!companyExists.premium
     };
 
     await knex('company').update(company).where({ id });
 
-    return res.json({
-      id,
-      ...company,
-    });
+    const normalizedAddresses = JSON.parse(addresses);
+
+    if (normalizedAddresses.length > 0) {
+      const companyAddress = await knex('address')
+        .select('address.*')
+        .where({ 'address.company_id': id });
+
+      const addressList = [...new Set(normalizedAddresses)];
+  
+      for (let i = 0; i < addressList.length; i++) {
+        const updatedAddress = {
+          id: companyAddress[i].id,
+          company_id: id,
+          address: addressList[i].address,
+          lat: addressList[i].lat,
+          lng: addressList[i].lng
+        }
+  
+        await knex('address').update(updatedAddress).where({ id: companyAddress[i].id });
+      }
+    }
+
+    const normalizedQuestionsAndAnswers = JSON.parse(questionsAndAnswers)
+
+    const companyQandAs = await knex('questions')
+      .select('questions.*')
+      .where({ 'questions.company_id': id });
+      
+    for (const qa of companyQandAs) {
+      await knex('questions').where({ id: qa.id }).delete()
+    }
+
+    for (let i = 0; i < normalizedQuestionsAndAnswers.length; i++) {
+      const question = {
+        id: uuidV4(),
+        company_id: id,
+        question: normalizedQuestionsAndAnswers[i].question,
+        answer: normalizedQuestionsAndAnswers[i].answer
+      }
+
+      await knex('questions').insert(question);      
+    }
+
+    const normalizedCourts = JSON.parse(courts);
+
+    const companyCourts = await knex('courts')
+      .select('courts.*')
+      .where({ 'courts.company_id': id });
+    
+    const companyCourtsIds = companyCourts.map(court => court.id);
+    const normalizedCourtsIds = [];
+
+    for (let i = 0; i < normalizedCourts.length; i++) {
+      if (!normalizedCourts[i].id) {
+        const court_id = uuidV4();
+
+        const insertedCourt = {
+          id: court_id,
+          company_id: id,
+          address: normalizedCourts[i].address,
+          lat: normalizedCourts[i].lat,
+          lng: normalizedCourts[i].lng,
+          is_indoor: normalizedCourts[i].is_indoor,
+          has_classes: normalizedCourts[i].has_classes
+        }
+  
+        await knex('courts').insert(insertedCourt);
+
+        for (const sport of normalizedCourts[i].sports) {
+          const sport_id = uuidV4();
+  
+          const insertedSport = {
+            id: sport_id,
+            court_id,
+            sport,
+          }
+  
+          await knex('courts_sports').insert(insertedSport);
+        }
+
+        const courtPictureBase64 = files[`courtPicture${i}`] ?  convertToBase64(files[`courtPicture${i}`]) : ''
+  
+        if (courtPictureBase64) {
+          const picture = {
+            id: uuidV4(),
+            court_id,
+            url: courtPictureBase64,
+          }
+  
+          await knex('courts-photos').insert(picture);
+  
+          normalizedCourts[i].picture = picture
+        }
+      } else {
+        normalizedCourtsIds.push(normalizedCourts[i].id);
+      }
+    }
+
+    for (const id of companyCourtsIds) {
+      if (!normalizedCourtsIds.includes(id)) {
+        await knex('courts_sports').where({ 'courts_sports.court_id': id}).delete();
+        await knex('courts-photos').where({ 'courts_sports.court_id': id}).delete();
+        await knex('courts').where({ 'courts.id': id}).delete();
+      }
+    }
+
+    company.questionsAndAnswers = normalizedQuestionsAndAnswers;
+    company.courts = normalizedCourts;
+    company.address = normalizedAddresses;
+
+    return res.json(company);
   }
 
   async list(req, res) {
     const { sport, lat, lng } = req.query;
-    
-    // const [count] = await knex('company').count('*')
 
-    // const totalPages = count['count(*)'] / 10;
-
-    const companies = [];
-
-    // for (let i = 0; i < totalPages; i++) {
-    //   console.log({ i })
-      const query = await knex('company as c')
-        .select(
-          'c.id',
-          'c.logo',
-          'c.name',
-          'c.vip',
-          'c.premium',
-          'c.phone',
-          'c.cellphone'
-        )
-        // .offset(i)
-        // .limit(10)
-
-      companies.push(...query)
-    // }
+    const companies = await knex('company as c')
+      .select(
+        'c.id',
+        'c.logo',
+        'c.name',
+        'c.vip',
+        'c.premium',
+        'c.phone',
+        'c.cellphone'
+      );
 
     const companyWithCourts = [];
 
@@ -332,6 +446,79 @@ class CompanyController {
     const courts = await knex('courts')
       .select('courts.*')
       .where({ 'courts.company_id': company.id});
+console.log({ courts })
+    const courtsWithSports = [];
+
+    for (const court of courts) {
+      const sports = await knex('courts_sports')
+        .select('courts_sports.*')
+        .where({ 'courts_sports.court_id': court.id});
+console.log({ sports })
+      const photos = await knex('courts-photos')
+        .select('courts-photos.url')
+        .where({ 'courts-photos.court_id': court.id});
+console.log({ photos })
+      court.sports = sports;
+      court.photos = photos;
+
+      court.is_indoor = !!court.is_indoor;
+      court.has_classes = !!court.has_classes;
+
+      courtsWithSports.push(court);
+    }
+
+    company.courts = courtsWithSports;
+
+    company.photos = [];
+
+    if (company.firstPicture) {
+      company.photos.push(company.firstPicture);
+    }
+
+    if (company.secondPicture) {
+      company.photos.push(company.secondPicture);
+    }
+
+    if (company.thirdPicture) {
+      company.photos.push(company.thirdPicture);
+    }
+
+    company.vip = !!company.vip
+    company.premium = !!company.premium
+
+    delete company.firstPicture;
+    delete company.secondPicture;
+    delete company.thirdPicture;
+    
+    return res.json(company);
+  }
+
+  async listByUserId(req, res) {
+    const { user_id } = req.params;
+
+    const [company] = await knex('company')
+      .select('company.*')
+      .where({ 'company.user_id': user_id});
+
+    if (!company) {
+      return res.status(404).json({ message: 'This company does not exist' });
+    }
+
+    const questions = await knex('questions')
+      .select('questions.*')
+      .where({ 'questions.company_id': company.id });
+
+    company.questionsAndAnswers = questions;
+
+    const addresses = await knex('address')
+      .select('address.*')
+      .where({ 'address.company_id': company.id });
+
+    company.addresses = addresses;
+    
+    const courts = await knex('courts')
+      .select('courts.*')
+      .where({ 'courts.company_id': company.id});
 
     const courtsWithSports = [];
 
@@ -340,12 +527,7 @@ class CompanyController {
         .select('courts_sports.*')
         .where({ 'courts_sports.court_id': court.id});
 
-      const photos = await knex('courts-photos')
-        .select('courts-photos.url')
-        .where({ 'courts-photos.court_id': court.id});
-
       court.sports = sports;
-      court.photos = photos;
 
       court.is_indoor = !!court.is_indoor;
       court.has_classes = !!court.has_classes;

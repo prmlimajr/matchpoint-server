@@ -8,20 +8,6 @@ const { checkPassword } = require('../../utils/checkPassword');
 class UserController {
   async store(req, res) {
     const { name, lastName, phone, notify, email, password, isProvider, } = req.body;
-    
-    const schema = Yup.object().shape({
-      name: Yup.string().required(),
-      lastName: Yup.string().required(),
-      phone: Yup.string().required(),
-      notify: Yup.boolean().required(),
-      email: Yup.string().email().required(),
-      password: Yup.string().required().min(6),
-      isProvider: Yup.boolean().required()
-    });
-
-    if (!await schema.isValid(req.body)) {
-      return res.status(400).json({ error: 'Validation failed' });
-    }
 
     const [emailExists] = await knex('users')
       .select('users.*')

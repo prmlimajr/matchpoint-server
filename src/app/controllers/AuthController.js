@@ -35,7 +35,7 @@ class AuthController {
         name: userExists.name,
         email,
         is_provider: !!userExists.is_provider,
-        is_instructor: !userExists.is_instructor
+        is_instructor: !!userExists.is_instructor
       },
       token: jwt.sign({ id: userExists.id }, authConfig.secret, {
         expiresIn: authConfig.expiresIn,
