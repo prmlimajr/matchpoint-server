@@ -126,7 +126,7 @@ class CompanyController {
     const { name, addresses, cellphone, phone, bio, facebook, instagram, description, questionsAndAnswers, history, courts } = req.body;
     const { files } = req;
 
-    const { logo, firstPicture, secondPicture, thirdPicture } = files
+    const { logo, firstPicture, secondPicture, thirdPicture } = files;
 
     const { id } = req.params;
     const { userId } = req;
@@ -285,7 +285,7 @@ class CompanyController {
     for (const id of companyCourtsIds) {
       if (!normalizedCourtsIds.includes(id)) {
         await knex('courts_sports').where({ 'courts_sports.court_id': id}).delete();
-        await knex('courts-photos').where({ 'courts_sports.court_id': id}).delete();
+        await knex('courts-photos').where({ 'courts-photos.court_id': id}).delete();
         await knex('courts').where({ 'courts.id': id}).delete();
       }
     }
@@ -563,7 +563,7 @@ class CompanyController {
 
   async listVips(req, res) {
     const vips = await knex('company')
-      .select('company.id', 'company.name', 'company.logo')
+      .select('company.id', 'company.name', 'company.logo', 'company.vip', 'company.premium')
       .where({ 'company.vip': '1'})
       .orWhere({ 'company.premium': '1'});
 
@@ -590,6 +590,8 @@ class CompanyController {
         id: vip.id,
         logo: vip.logo,
         name: vip.name,
+        vip: !!vip.vip,
+        premium: !!vip.premium,
         sports: [...new Set(sports)]
       }
     });
