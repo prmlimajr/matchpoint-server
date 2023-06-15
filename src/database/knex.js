@@ -9,7 +9,9 @@ const knex = require('knex')({
     user: DB_USER,
     password: DB_PASSWORD,
     database: DB_NAME,
+    ssl:{"rejectUnauthorized":true},
   },
+  
   migrations: {
     directory: path.resolve(__dirname, 'src', 'database', 'migrations'),
   },
